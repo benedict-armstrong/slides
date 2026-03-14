@@ -2,12 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { renderPage } from "@/lib/pdf";
-import { socket } from "@/lib/socket";
 import { getSessionAuth } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { DialogOverlay } from "@/components/ui/dialog-overlay";
 import { SessionQRCode } from "@/components/SessionQRCode";
 import { CopyField } from "@/components/CopyField";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function ControllerView({
   id,
@@ -87,6 +87,7 @@ export function ControllerView({
           <Button size="sm" variant="ghost" onClick={() => navigate(`/s/${id}?role=viewer`, { replace: true })}>
             Switch to Viewer
           </Button>
+          <ThemeToggle />
         </div>
       </div>
 

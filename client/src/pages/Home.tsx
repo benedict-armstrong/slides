@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface RecentSession {
   id: string;
@@ -203,12 +204,15 @@ export default function Home() {
         </Card>
       )}
 
-      <Link
-        to="/about"
-        className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-4"
-      >
-        How does this work?
-      </Link>
+      <div className="flex items-center gap-3">
+        <Link
+          to="/about"
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-4"
+        >
+          How does this work?
+        </Link>
+        <ThemeToggle />
+      </div>
     </div>
   );
 }
