@@ -25,6 +25,7 @@ export async function renderPage(
 
   await page.render({
     canvasContext: canvas.getContext("2d")!,
+    canvas,
     viewport,
   }).promise;
 
