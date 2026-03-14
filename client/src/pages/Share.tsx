@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { QRCodeSVG } from "qrcode.react";
 
 export default function Share() {
   const { id } = useParams<{ id: string }>();
@@ -13,13 +14,22 @@ export default function Share() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-lg">
         <CardContent className="pt-6 space-y-6">
-          <div className="text-center space-y-2">
-            <p className="text-sm text-muted-foreground">Session Code</p>
-            <p className="text-5xl font-bold tracking-widest font-mono select-all">
-              {id}
-            </p>
+          <div className="text-center space-y-4">
+            <div className="flex justify-center">
+              <QRCodeSVG
+                value={`${window.location.origin}/s/${id}?role=viewer`}
+                size={180}
+                className="rounded"
+              />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Session Code</p>
+              <p className="text-5xl font-bold tracking-widest font-mono select-all">
+                {id}
+              </p>
+            </div>
             <p className="text-sm text-muted-foreground">
-              Share this code with your audience so they can join
+              Share this code or scan the QR to join as a viewer
             </p>
           </div>
 

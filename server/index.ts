@@ -85,6 +85,31 @@ app.get("/api/sessions/:id", async (req, res) => {
   res.json({ ...data, pdfUrl: urlData.publicUrl });
 });
 
+app.delete("/api/sessions/:id", async (req, res) => {
+  const { data, error } = await supabase
+    .from("sessions")
+    .select("id, pdf_path")
+    .eq("id", req.params.id)
+    .single();
+
+  if (error || !data) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+
+  await supabase.storage.from("presentations").remove([data.pdf_path]);
+  await supabase.from("sessions").delete().eq("id", data.id);
+
+  // Disconnect all sockets in this session's room
+  const sockets = await io.in(data.id).fetchSockets();
+  for (const s of sockets) {
+    s.emit("session_ended");
+    s.disconnect(true);
+  }
+
+  res.json({ ok: true });
+});
+
 // --- WebSocket ---
 
 io.on("connection", (socket) => {
