@@ -1,10 +1,8 @@
 services:
   - type: web
     name: presio
-    runtime: node
+    runtime: docker
     plan: starter
-    buildCommand: npm run build
-    startCommand: npm start
     envVars:
       - key: SUPABASE_URL
         sync: false
@@ -14,5 +12,3 @@ services:
         sync: false
       - key: VITE_SUPABASE_ANON_KEY
         sync: false
-      - key: NODE_VERSION
-        value: 20
