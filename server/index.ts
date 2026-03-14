@@ -3,6 +3,8 @@ import express from "express";
 import cors from "cors";
 import multer from "multer";
 import http from "http";
+import path from "path";
+import { fileURLToPath } from "url";
 import { Server } from "socket.io";
 import { nanoid, customAlphabet } from "nanoid";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
@@ -143,6 +145,16 @@ app.delete("/api/sessions/:id", async (req, res) => {
   }
 
   res.json({ ok: true });
+});
+
+// --- Serve client in production ---
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const clientDist = path.join(__dirname, "../client/dist");
+
+app.use(express.static(clientDist));
+app.get("*", (_req, res) => {
+  res.sendFile(path.join(clientDist, "index.html"));
 });
 
 // --- WebSocket ---
