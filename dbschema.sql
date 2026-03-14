@@ -2,8 +2,11 @@
 create table if not exists sessions (
   id text primary key,
   pdf_path text not null,
+  filename text not null,
   total_slides integer not null,
   current_slide integer not null default 1,
+  controller_token text not null,
+  passphrase text not null,
   created_at timestamptz not null default now(),
   expires_at timestamptz not null default (now() + interval '24 hours')
 );

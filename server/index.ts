@@ -4,7 +4,7 @@ import cors from "cors";
 import multer from "multer";
 import http from "http";
 import { Server } from "socket.io";
-import { nanoid } from "nanoid";
+import { nanoid, customAlphabet } from "nanoid";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { supabase } from "./supabase.js";
 
@@ -15,6 +15,8 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 
 
 app.use(cors());
 app.use(express.json());
+
+const generatePassphrase = customAlphabet("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 8);
 
 // Track which socket is the controller for each session
 const controllers = new Map<string, string>();
@@ -31,6 +33,9 @@ app.post("/api/sessions", upload.single("pdf"), async (req, res) => {
 
     const id = nanoid(6);
     const pdfPath = `${id}.pdf`;
+    const filename = file.originalname.replace(/\.pdf$/i, "");
+    const controllerToken = nanoid(24);
+    const passphrase = generatePassphrase();
 
     // Count pages
     const doc = await getDocument({ data: new Uint8Array(file.buffer) }).promise;
@@ -51,7 +56,10 @@ app.post("/api/sessions", upload.single("pdf"), async (req, res) => {
     const { error: dbError } = await supabase.from("sessions").insert({
       id,
       pdf_path: pdfPath,
+      filename,
       total_slides: totalSlides,
+      controller_token: controllerToken,
+      passphrase,
     });
 
     if (dbError) {
@@ -59,7 +67,7 @@ app.post("/api/sessions", upload.single("pdf"), async (req, res) => {
       return;
     }
 
-    res.json({ id, totalSlides });
+    res.json({ id, totalSlides, controllerToken, passphrase });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal server error" });
@@ -82,7 +90,34 @@ app.get("/api/sessions/:id", async (req, res) => {
     .from("presentations")
     .getPublicUrl(data.pdf_path);
 
-  res.json({ ...data, pdfUrl: urlData.publicUrl });
+  const { controller_token, passphrase, ...publicData } = data;
+  res.json({ ...publicData, pdfUrl: urlData.publicUrl });
+});
+
+app.post("/api/sessions/:id/auth", async (req, res) => {
+  const { passphrase } = req.body;
+  if (!passphrase) {
+    res.status(400).json({ error: "Passphrase is required" });
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("sessions")
+    .select("controller_token, passphrase")
+    .eq("id", req.params.id)
+    .single();
+
+  if (error || !data) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+
+  if (data.passphrase !== passphrase) {
+    res.status(401).json({ error: "Invalid passphrase" });
+    return;
+  }
+
+  res.json({ controllerToken: data.controller_token, passphrase: data.passphrase });
 });
 
 app.delete("/api/sessions/:id", async (req, res) => {
@@ -113,10 +148,10 @@ app.delete("/api/sessions/:id", async (req, res) => {
 // --- WebSocket ---
 
 io.on("connection", (socket) => {
-  socket.on("join_session", async ({ sessionId, role }: { sessionId: string; role: string }) => {
+  socket.on("join_session", async ({ sessionId, role, token }: { sessionId: string; role: string; token?: string }) => {
     const { data } = await supabase
       .from("sessions")
-      .select("current_slide, total_slides")
+      .select("current_slide, total_slides, controller_token")
       .eq("id", sessionId)
       .single();
 
@@ -125,17 +160,23 @@ io.on("connection", (socket) => {
       return;
     }
 
+    let grantedRole = role;
+    if (role === "controller") {
+      if (token !== data.controller_token) {
+        grantedRole = "viewer";
+      } else {
+        controllers.set(sessionId, socket.id);
+      }
+    }
+
     socket.join(sessionId);
     socket.data.sessionId = sessionId;
-    socket.data.role = role;
-
-    if (role === "controller") {
-      controllers.set(sessionId, socket.id);
-    }
+    socket.data.role = grantedRole;
 
     socket.emit("session_state", {
       currentSlide: data.current_slide,
       totalSlides: data.total_slides,
+      role: grantedRole,
     });
   });
 

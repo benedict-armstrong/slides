@@ -1,7 +1,13 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+
+interface RecentSession {
+  id: string;
+  filename: string;
+  hasToken: boolean;
+}
 
 export default function Home() {
   const navigate = useNavigate();
@@ -9,6 +15,35 @@ export default function Home() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [code, setCode] = useState("");
+  const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
+
+  useEffect(() => {
+    const sessionKeys = Object.keys(localStorage).filter((k) => k.startsWith("session_"));
+    if (!sessionKeys.length) return;
+
+    let cancelled = false;
+    Promise.all(
+      sessionKeys.map(async (key) => {
+        const id = key.replace("session_", "");
+        try {
+          const res = await fetch(`/api/sessions/${id}`);
+          if (!res.ok) {
+            localStorage.removeItem(key);
+            return null;
+          }
+          const session = await res.json();
+          const stored = JSON.parse(localStorage.getItem(key) || "{}");
+          return { id, filename: session.filename, hasToken: !!stored.controllerToken } as RecentSession;
+        } catch {
+          return null;
+        }
+      })
+    ).then((results) => {
+      if (!cancelled) setRecentSessions(results.filter((r): r is RecentSession => r !== null));
+    });
+
+    return () => { cancelled = true; };
+  }, []);
 
   const upload = useCallback(async (file: File) => {
     setError("");
@@ -21,7 +56,8 @@ export default function Home() {
         const body = await res.json();
         throw new Error(body.error || "Upload failed");
       }
-      const { id } = await res.json();
+      const { id, controllerToken, passphrase } = await res.json();
+      localStorage.setItem(`session_${id}`, JSON.stringify({ controllerToken, passphrase }));
       navigate(`/s/${id}/share`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Upload failed");
@@ -138,6 +174,34 @@ export default function Home() {
           </div>
         </CardContent>
       </Card>
+
+      {recentSessions.length > 0 && (
+        <Card className="w-full max-w-lg">
+          <CardContent className="pt-6 space-y-3">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Recent presentations
+            </p>
+            {recentSessions.map((s) => (
+              <div key={s.id} className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{s.filename}</p>
+                  <p className="text-xs text-muted-foreground font-mono">{s.id}</p>
+                </div>
+                <div className="flex gap-1.5 shrink-0">
+                  {s.hasToken && (
+                    <Button size="sm" variant="outline" onClick={() => navigate(`/s/${s.id}?role=controller`)}>
+                      Control
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" onClick={() => navigate(`/s/${s.id}?role=viewer`)}>
+                    View
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <Link
         to="/about"

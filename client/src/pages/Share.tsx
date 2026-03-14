@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,6 +9,19 @@ export default function Share() {
 
   const controllerUrl = `${window.location.origin}/s/${id}?role=controller`;
   const viewerUrl = `${window.location.origin}/s/${id}?role=viewer`;
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/sessions/${id}`);
+        if (!res.ok) return;
+        const session = await res.json();
+        if (!cancelled) document.title = `${session.filename} - Share`;
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; document.title = "Slide Controller"; };
+  }, [id]);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
@@ -72,7 +85,6 @@ function CopyRow({ label, url }: { label: string; url: string }) {
           {url}
         </code>
         <Button
-          size="sm"
           variant="outline"
           onClick={() => {
             navigator.clipboard.writeText(url);
