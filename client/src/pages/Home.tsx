@@ -97,7 +97,7 @@ export default function Home() {
       <Card className="w-full max-w-lg">
         <CardContent className="pt-6 space-y-6">
           <div className="text-center space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight">Slide Controller</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Presio</h1>
             <p className="text-sm text-muted-foreground">
               Upload a PDF presentation to start presenting
             </p>

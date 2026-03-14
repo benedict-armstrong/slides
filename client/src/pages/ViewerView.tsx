@@ -21,6 +21,7 @@ export function ViewerView({
   const [passphrase, setPassphrase] = useState("");
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   const resetTimer = useCallback(() => {
@@ -39,6 +40,12 @@ export function ViewerView({
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [resetTimer]);
+
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
 
   const submitPassphrase = async () => {
     setAuthError("");
@@ -122,6 +129,23 @@ export function ViewerView({
                 </a>
               </Button>
             )}
+            <Button
+              className="w-full"
+              variant="outline"
+              onClick={() => {
+                if (document.fullscreenElement) {
+                  document.exitFullscreen();
+                } else {
+                  document.documentElement.requestFullscreen();
+                }
+                setMenuOpen(false);
+              }}
+            >
+              {isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            </Button>
+            <Button className="w-full" variant="outline" onClick={() => navigate("/")}>
+              Back to Home
+            </Button>
             <Button className="w-full" variant="ghost" onClick={() => setMenuOpen(false)}>
               Close
             </Button>

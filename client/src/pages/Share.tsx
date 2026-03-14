@@ -20,7 +20,7 @@ export default function Share() {
         if (!cancelled) document.title = `${session.filename} - Share`;
       } catch { /* ignore */ }
     })();
-    return () => { cancelled = true; document.title = "Slide Controller"; };
+    return () => { cancelled = true; document.title = "Presio"; };
   }, [id]);
 
   return (

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { renderPage } from "@/lib/pdf";
 import { getSessionAuth } from "@/lib/utils";
@@ -8,6 +8,18 @@ import { DialogOverlay } from "@/components/ui/dialog-overlay";
 import { SessionQRCode } from "@/components/SessionQRCode";
 import { CopyField } from "@/components/CopyField";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { MobileControllerMenu } from "@/components/MobileControllerMenu";
+import { useIsMobile } from "@/hooks/useIsMobile";
+
+interface ControllerViewProps {
+  id: string;
+  pdf: PDFDocumentProxy;
+  pdfUrl: string;
+  currentSlide: number;
+  totalSlides: number;
+  onGoTo: (slide: number) => void;
+  currentCanvasRef: React.RefObject<HTMLDivElement | null>;
+}
 
 export function ControllerView({
   id,
@@ -17,17 +29,10 @@ export function ControllerView({
   totalSlides,
   onGoTo,
   currentCanvasRef,
-}: {
-  id: string;
-  pdf: PDFDocumentProxy;
-  pdfUrl: string;
-  currentSlide: number;
-  totalSlides: number;
-  onGoTo: (slide: number) => void;
-  currentCanvasRef: React.RefObject<HTMLDivElement | null>;
-}) {
+}: ControllerViewProps) {
   const navigate = useNavigate();
   const previewCanvasRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [passphraseDialogOpen, setPassphraseDialogOpen] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
@@ -68,10 +73,72 @@ export function ControllerView({
   const viewerUrl = `${window.location.origin}/s/${id}?role=viewer`;
   const { passphrase } = getSessionAuth(id);
 
+  if (isMobile) {
+    return (
+      <div className="h-dvh bg-background flex flex-col">
+        <div className="border-b px-3 py-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Link to="/" className="text-sm font-semibold hover:text-muted-foreground transition-colors">
+              Presio
+            </Link>
+            <span className="text-muted-foreground/40">|</span>
+            <span className="font-mono font-bold tracking-widest text-sm select-all">{id}</span>
+          </div>
+          <MobileControllerMenu id={id} pdfUrl={pdfUrl} passphrase={passphrase} />
+        </div>
+
+        <div className="flex-1 flex flex-col gap-2 p-3 min-h-0">
+          <div className="flex-3 flex flex-col gap-1 min-h-0">
+            <p className="text-xs text-muted-foreground font-medium">Current</p>
+            <div
+              ref={currentCanvasRef}
+              className="flex-1 border rounded-lg overflow-hidden bg-white min-h-0"
+            />
+          </div>
+          <div className="flex-2 flex flex-col gap-1 min-h-0">
+            <p className="text-xs text-muted-foreground font-medium">Next</p>
+            <div
+              ref={previewCanvasRef}
+              className="flex-1 border rounded-lg overflow-hidden bg-white min-h-0"
+            />
+          </div>
+        </div>
+
+        <div className="border-t px-3 py-3 space-y-2">
+          <p className="text-center text-xs text-muted-foreground tabular-nums">
+            {currentSlide} / {totalSlides}
+          </p>
+          <div className="flex gap-2">
+            <Button
+              className="flex-1 h-12 text-base"
+              variant="outline"
+              onClick={() => onGoTo(currentSlide - 1)}
+              disabled={currentSlide <= 1}
+            >
+              Previous
+            </Button>
+            <Button
+              className="flex-1 h-12 text-base"
+              variant="outline"
+              onClick={() => onGoTo(currentSlide + 1)}
+              disabled={currentSlide >= totalSlides}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen bg-background flex flex-col">
       <div className="border-b px-4 py-2 flex items-center justify-between">
         <div className="flex items-center gap-3">
+          <Link to="/" className="text-sm font-semibold hover:text-muted-foreground transition-colors">
+            Presio
+          </Link>
+          <span className="text-muted-foreground/40">|</span>
           <span className="text-xs text-muted-foreground">Code:</span>
           <span className="font-mono font-bold tracking-widest select-all">{id}</span>
         </div>

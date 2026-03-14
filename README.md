@@ -1,4 +1,4 @@
-# Slide Controller
+# Presio
 
 Upload a PDF presentation, get a short link, and control the slideshow from one browser window while viewers watch in another.
 
@@ -53,10 +53,3 @@ The client dev server proxies `/api` and `/socket.io` requests to the server on 
 5. Use the Previous/Next buttons (or arrow keys) in the controller to navigate slides
 
 Presentations automatically expire after 24 hours.
-
-## TODO
-
-- [ ] Make sure the window names are correct. Something like "<filename> - Controller" or "<filename> - Viewer".
-- [ ] Add the ability to lock a presentation when it is uploaded. For this add a token to the controller browser. All other users can only join as viewers. When you lock a presentation add a passphrase that can be use to switch to controller status if you loose the original controller. This should then add the token to that controller so that controller automatically logs in.
-- [ ] Add a button to the controller that shows the passphrase
-- [ ] Combine the "Share Links" button and the "QR Code" button into one button that opens a dialog with the links and the QR code.

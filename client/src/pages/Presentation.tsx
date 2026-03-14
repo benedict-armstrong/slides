@@ -56,7 +56,7 @@ export default function Presentation() {
     if (!filename) return;
     const suffix = role === "controller" ? "Controller" : "Viewer";
     document.title = `${filename} - ${suffix}`;
-    return () => { document.title = "Slide Controller"; };
+    return () => { document.title = "Presio"; };
   }, [filename, role]);
 
   useEffect(() => {

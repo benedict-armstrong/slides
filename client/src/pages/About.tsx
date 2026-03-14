@@ -8,7 +8,7 @@ export default function About() {
       <Card className="w-full max-w-lg">
         <CardContent className="pt-6 space-y-6">
           <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight">About Slide Controller</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">About Presio</h1>
             <p className="text-sm text-muted-foreground">
               A simple tool for presenting PDFs remotely.
             </p>
