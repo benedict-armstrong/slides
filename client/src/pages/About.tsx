@@ -41,7 +41,7 @@ export default function About() {
               <Link to="/">Back to Home</Link>
             </Button>
             <a
-              href="https://github.com/your-username/slides"
+              href="https://github.com/benedict-armstrong/slides"
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors underline underline-offset-4"
