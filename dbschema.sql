@@ -7,6 +7,10 @@ create table if not exists sessions (
   current_slide integer not null default 1,
   controller_token text not null,
   passphrase text not null,
+  timer_mode text,
+  timer_duration integer,
+  timer_threshold integer,
+  note_prefix text not null default 'note:',
   created_at timestamptz not null default now(),
   expires_at timestamptz not null default (now() + interval '24 hours')
 );

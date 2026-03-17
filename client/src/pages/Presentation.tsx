@@ -9,6 +9,20 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ControllerView } from "./ControllerView";
 import { ViewerView } from "./ViewerView";
 
+export interface PresentationSettings {
+  timerMode: string | null;
+  timerDuration: number | null;
+  timerThreshold: number | null;
+  notePrefix: string;
+}
+
+const defaultSettings: PresentationSettings = {
+  timerMode: null,
+  timerDuration: null,
+  timerThreshold: null,
+  notePrefix: "note:",
+};
+
 export default function Presentation() {
   const { id } = useParams<{ id: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -23,6 +37,9 @@ export default function Presentation() {
   const [totalSlides, setTotalSlides] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [settings, setSettings] = useState<PresentationSettings>(defaultSettings);
+  const [startedAt] = useState(() => Date.now());
+  const [blanked, setBlanked] = useState(false);
 
   const currentCanvasRef = useRef<HTMLDivElement>(null);
 
@@ -40,6 +57,12 @@ export default function Presentation() {
         setFilename(session.filename);
         setTotalSlides(session.total_slides);
         setCurrentSlide(session.current_slide);
+        setSettings({
+          timerMode: session.timer_mode ?? null,
+          timerDuration: session.timer_duration ?? null,
+          timerThreshold: session.timer_threshold ?? null,
+          notePrefix: session.note_prefix ?? "note:",
+        });
       } catch {
         if (!cancelled) setError("Failed to load presentation");
       } finally {
@@ -64,9 +87,10 @@ export default function Presentation() {
     socket.connect();
     socket.emit("join_session", { sessionId: id, role: requestedRole, token: controllerToken });
 
-    socket.on("session_state", ({ currentSlide, totalSlides, role: grantedRole }) => {
+    socket.on("session_state", ({ currentSlide, totalSlides, role: grantedRole, settings: s }) => {
       setCurrentSlide(currentSlide);
       setTotalSlides(totalSlides);
+      if (s) setSettings(s);
       if (grantedRole && grantedRole !== requestedRole) {
         setRole(grantedRole);
         setSearchParams({ role: grantedRole }, { replace: true });
@@ -77,6 +101,14 @@ export default function Presentation() {
 
     socket.on("slide_update", ({ slideNumber }) => {
       setCurrentSlide(slideNumber);
+    });
+
+    socket.on("settings_update", (s: PresentationSettings) => {
+      setSettings(s);
+    });
+
+    socket.on("blank_update", ({ blanked }: { blanked: boolean }) => {
+      setBlanked(blanked);
     });
 
     socket.on("error", ({ message }) => {
@@ -90,6 +122,8 @@ export default function Presentation() {
     return () => {
       socket.off("session_state");
       socket.off("slide_update");
+      socket.off("settings_update");
+      socket.off("blank_update");
       socket.off("error");
       socket.off("session_ended");
       socket.disconnect();
@@ -147,7 +181,7 @@ export default function Presentation() {
   }
 
   if (role === "viewer") {
-    return <ViewerView id={id!} pdfUrl={pdfUrl} canvasRef={currentCanvasRef} />;
+    return <ViewerView id={id!} pdfUrl={pdfUrl} canvasRef={currentCanvasRef} settings={settings} startedAt={startedAt} blanked={blanked} />;
   }
 
   return (
@@ -159,6 +193,14 @@ export default function Presentation() {
       totalSlides={totalSlides}
       onGoTo={goTo}
       currentCanvasRef={currentCanvasRef}
+      settings={settings}
+      onSettingsChange={(s) => {
+        setSettings(s);
+        socket.emit("settings_change", s);
+      }}
+      startedAt={startedAt}
+      blanked={blanked}
+      onBlankToggle={() => socket.emit("blank_toggle")}
     />
   );
 }

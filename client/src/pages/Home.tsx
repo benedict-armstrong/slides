@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,7 +15,10 @@ export default function Home() {
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
-  const [code, setCode] = useState("");
+  const CODE_LENGTH = 6;
+  const [chars, setChars] = useState<string[]>(Array(CODE_LENGTH).fill(""));
+  const charRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const code = chars.join("");
   const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
 
   useEffect(() => {
@@ -87,9 +90,8 @@ export default function Home() {
   );
 
   const joinSession = (role: string) => {
-    const trimmed = code.trim();
-    if (!trimmed) return;
-    navigate(`/s/${trimmed}?role=${role}`);
+    if (code.length < CODE_LENGTH) return;
+    navigate(`/s/${code}?role=${role}`);
   };
 
   return (
@@ -143,35 +145,77 @@ export default function Home() {
           </div>
 
           <div className="space-y-3">
-            <input
-              type="text"
-              placeholder="Enter session code"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              maxLength={10}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") joinSession("viewer");
-              }}
-            />
-            <div className="flex gap-2">
-              <Button
-                className="flex-1"
-                variant="outline"
-                disabled={!code.trim()}
-                onClick={() => joinSession("viewer")}
-              >
-                Join as Viewer
-              </Button>
-              <Button
-                className="flex-1"
-                variant="outline"
-                disabled={!code.trim()}
-                onClick={() => joinSession("controller")}
-              >
-                Join as Controller
-              </Button>
+            <div className="flex gap-2 justify-center">
+              {Array.from({ length: CODE_LENGTH }, (_, i) => (
+                <input
+                  key={i}
+                  ref={(el) => { charRefs.current[i] = el; }}
+                  type="text"
+                  inputMode="text"
+                  maxLength={1}
+                  value={chars[i]}
+                  className="w-10 h-12 rounded-md border border-input bg-background text-center text-lg font-mono font-bold uppercase tracking-widest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+                    if (!val) return;
+                    const next = [...chars];
+                    next[i] = val[val.length - 1];
+                    setChars(next);
+                    if (i < CODE_LENGTH - 1) charRefs.current[i + 1]?.focus();
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Backspace") {
+                      e.preventDefault();
+                      const next = [...chars];
+                      if (chars[i]) {
+                        next[i] = "";
+                        setChars(next);
+                      } else if (i > 0) {
+                        next[i - 1] = "";
+                        setChars(next);
+                        charRefs.current[i - 1]?.focus();
+                      }
+                    } else if (e.key === "ArrowLeft" && i > 0) {
+                      charRefs.current[i - 1]?.focus();
+                    } else if (e.key === "ArrowRight" && i < CODE_LENGTH - 1) {
+                      charRefs.current[i + 1]?.focus();
+                    } else if (e.key === "Enter" && code.length === CODE_LENGTH) {
+                      joinSession("viewer");
+                    }
+                  }}
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    const pasted = e.clipboardData.getData("text").toUpperCase().replace(/[^A-Z0-9]/g, "");
+                    const next = [...chars];
+                    for (let j = 0; j < CODE_LENGTH - i && j < pasted.length; j++) {
+                      next[i + j] = pasted[j];
+                    }
+                    setChars(next);
+                    const focusIdx = Math.min(i + pasted.length, CODE_LENGTH - 1);
+                    charRefs.current[focusIdx]?.focus();
+                  }}
+                  onFocus={(e) => e.target.select()}
+                />
+              ))}
             </div>
+            {code.length === CODE_LENGTH && (
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1"
+                  variant="outline"
+                  onClick={() => joinSession("viewer")}
+                >
+                  Join as Viewer
+                </Button>
+                <Button
+                  className="flex-1"
+                  variant="outline"
+                  onClick={() => joinSession("controller")}
+                >
+                  Join as Controller
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

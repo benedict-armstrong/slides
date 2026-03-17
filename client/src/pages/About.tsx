@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 export default function About() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-lg">
+      <Card className="w-full max-w-3xl">
         <CardContent className="pt-6 space-y-6">
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold tracking-tight">About Presio</h1>
@@ -33,6 +33,61 @@ export default function About() {
                 <li>Anyone can download the PDF from the presentation view.</li>
                 <li>Presentations automatically expire after 24 hours.</li>
               </ul>
+            </div>
+          </div>
+
+          <div className="space-y-4 text-sm text-muted-foreground">
+            <div className="space-y-1">
+              <h2 className="text-base font-medium text-foreground">Speaker Notes</h2>
+              <p>
+                Presio can display speaker notes embedded in your PDF as link annotations.
+                The controller view has a toggleable notes panel that renders markdown.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-sm font-medium text-foreground">Typst</h3>
+              <p>Add a helper function to your document and call it on each slide:</p>
+              <pre className="bg-muted rounded-md p-3 overflow-x-auto text-xs font-mono whitespace-pre">{`// Define the speaker-notes function
+#let speaker-notes(notes) = context {
+  // 1. Get the current page number to ensure a unique filename per slide
+  let page-num = counter(page).display()
+  let filename = "notes-slide-" + page-num + ".json"
+
+  // 2. Structure the data as a dictionary and encode it to a JSON string
+  let note-data = (
+    slide: page-num,
+    notes: notes,
+  )
+  let json-string = json.encode(note-data)
+
+  // 3. Attach the JSON file to the PDF
+  pdf.attach(
+    filename,
+    bytes(json-string), // Pass the raw bytes of the JSON string
+    description: "Speaker notes for slide " + page-num,
+    mime-type: "application/json",
+  )
+}
+`}</pre>
+            </div>
+
+            Example usage:
+            <br />
+            <pre className="bg-muted rounded-md p-3 overflow-x-auto text-xs font-mono whitespace-pre">{`#speaker-notes("Remember to mention the demo.")`}</pre>
+
+            <div className="space-y-1">
+              <h3 className="text-sm font-medium text-foreground">LaTeX (hyperref)</h3>
+              <p>Use the <code className="bg-muted px-1 rounded text-xs">hyperref</code> package to create an invisible link:</p>
+              <pre className="bg-muted rounded-md p-3 overflow-x-auto text-xs font-mono whitespace-pre">{`\\usepackage{hyperref}
+
+\\newcommand{\\speakernote}[1]{%
+  \\href{note:#1}{\\phantom{n}}%
+}
+
+% Usage on a slide:
+\\speakernote{Remember to mention the demo.}
+`}</pre>
             </div>
           </div>
 

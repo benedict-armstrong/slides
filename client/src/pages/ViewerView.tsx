@@ -4,15 +4,24 @@ import { getSessionAuth } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { DialogOverlay } from "@/components/ui/dialog-overlay";
 import { SessionQRCode } from "@/components/SessionQRCode";
+import { PresentationTimer } from "@/components/PresentationTimer";
+import { ConnectionIndicator } from "@/components/ConnectionIndicator";
+import type { PresentationSettings } from "./Presentation";
 
 export function ViewerView({
   id,
   pdfUrl,
   canvasRef,
+  settings,
+  startedAt,
+  blanked,
 }: {
   id: string;
   pdfUrl: string;
   canvasRef: React.RefObject<HTMLDivElement | null>;
+  settings: PresentationSettings;
+  startedAt: number;
+  blanked: boolean;
 }) {
   const navigate = useNavigate();
   const [cursorVisible, setCursorVisible] = useState(true);
@@ -45,6 +54,17 @@ export function ViewerView({
     const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", onFsChange);
     return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "f" || e.key === "F") {
+        if (document.fullscreenElement) document.exitFullscreen();
+        else document.documentElement.requestFullscreen();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, []);
 
   const submitPassphrase = async () => {
@@ -80,9 +100,26 @@ export function ViewerView({
     >
       <div ref={canvasRef} className="w-full h-full" />
 
+      {blanked && (
+        <div className="absolute inset-0 bg-black z-10" />
+      )}
+
+      <div className={`absolute top-4 left-4 flex items-center gap-2 transition-opacity duration-300 ${
+        cursorVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+      }`}>
+        <ConnectionIndicator dark />
+        <PresentationTimer
+          mode={settings.timerMode}
+          duration={settings.timerDuration}
+          threshold={settings.timerThreshold}
+          startedAt={startedAt}
+          className="text-white/70 text-sm"
+        />
+      </div>
+
       <button
         onClick={() => setMenuOpen(true)}
-        className={`absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur transition-opacity duration-300 ${
+        className={`absolute top-4 right-4 p-2 rounded-full bg-black/20 hover:bg-black/30 text-white backdrop-blur drop-shadow-md cursor-pointer transition-opacity duration-300 ${
           cursorVisible ? "opacity-70 hover:opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >

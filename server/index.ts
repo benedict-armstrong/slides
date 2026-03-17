@@ -18,10 +18,13 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 
 app.use(cors());
 app.use(express.json());
 
+const generateSessionId = customAlphabet("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 6);
 const generatePassphrase = customAlphabet("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 8);
 
 // Track which socket is the controller for each session
 const controllers = new Map<string, string>();
+// Track blanked state per session (transient, no DB persistence)
+const blankedSessions = new Set<string>();
 
 // --- REST API ---
 
@@ -33,11 +36,16 @@ app.post("/api/sessions", upload.single("pdf"), async (req, res) => {
       return;
     }
 
-    const id = nanoid(6);
+    const id = generateSessionId();
     const pdfPath = `${id}.pdf`;
     const filename = file.originalname.replace(/\.pdf$/i, "");
     const controllerToken = nanoid(24);
     const passphrase = generatePassphrase();
+
+    const timerMode = req.body.timer_mode || null;
+    const timerDuration = req.body.timer_duration ? parseInt(req.body.timer_duration, 10) : null;
+    const timerThreshold = req.body.timer_threshold ? parseInt(req.body.timer_threshold, 10) : null;
+    const notePrefix = req.body.note_prefix || "note:";
 
     // Count pages
     const doc = await getDocument({ data: new Uint8Array(file.buffer) }).promise;
@@ -62,6 +70,10 @@ app.post("/api/sessions", upload.single("pdf"), async (req, res) => {
       total_slides: totalSlides,
       controller_token: controllerToken,
       passphrase,
+      timer_mode: timerMode,
+      timer_duration: timerDuration,
+      timer_threshold: timerThreshold,
+      note_prefix: notePrefix,
     });
 
     if (dbError) {
@@ -163,7 +175,7 @@ io.on("connection", (socket) => {
   socket.on("join_session", async ({ sessionId, role, token }: { sessionId: string; role: string; token?: string }) => {
     const { data } = await supabase
       .from("sessions")
-      .select("current_slide, total_slides, controller_token")
+      .select("current_slide, total_slides, controller_token, timer_mode, timer_duration, timer_threshold, note_prefix")
       .eq("id", sessionId)
       .single();
 
@@ -189,6 +201,12 @@ io.on("connection", (socket) => {
       currentSlide: data.current_slide,
       totalSlides: data.total_slides,
       role: grantedRole,
+      settings: {
+        timerMode: data.timer_mode,
+        timerDuration: data.timer_duration,
+        timerThreshold: data.timer_threshold,
+        notePrefix: data.note_prefix,
+      },
     });
   });
 
@@ -204,6 +222,37 @@ io.on("connection", (socket) => {
       .eq("id", sessionId);
 
     io.to(sessionId).emit("slide_update", { slideNumber });
+  });
+
+  socket.on("settings_change", async (settings: { timerMode?: string | null; timerDuration?: number | null; timerThreshold?: number | null; notePrefix?: string }) => {
+    const { sessionId } = socket.data;
+    if (!sessionId) return;
+    if (controllers.get(sessionId) !== socket.id) return;
+
+    await supabase
+      .from("sessions")
+      .update({
+        timer_mode: settings.timerMode ?? null,
+        timer_duration: settings.timerDuration ?? null,
+        timer_threshold: settings.timerThreshold ?? null,
+        note_prefix: settings.notePrefix ?? "note:",
+      })
+      .eq("id", sessionId);
+
+    io.to(sessionId).emit("settings_update", settings);
+  });
+
+  socket.on("blank_toggle", () => {
+    const { sessionId } = socket.data;
+    if (!sessionId) return;
+    if (controllers.get(sessionId) !== socket.id) return;
+
+    if (blankedSessions.has(sessionId)) {
+      blankedSessions.delete(sessionId);
+    } else {
+      blankedSessions.add(sessionId);
+    }
+    io.to(sessionId).emit("blank_update", { blanked: blankedSessions.has(sessionId) });
   });
 
   socket.on("disconnect", () => {
