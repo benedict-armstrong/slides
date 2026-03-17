@@ -34,17 +34,11 @@ const inputCls = "w-14 rounded-md border border-input bg-background px-1.5 py-1 
 
 export function TimerCard({
   id,
-  settings,
-  onSettingsChange,
 }: {
   id: string;
-  settings: PresentationSettings;
-  onSettingsChange: (s: PresentationSettings) => void;
 }) {
   const [timer, setTimer] = useState<TimerState>(() => loadTimerState(id));
   const [display, setDisplay] = useState(0);
-
-  const timerMode = (settings.timerMode as "up" | "down") || "off";
 
   const computeElapsed = useCallback(() => {
     if (timer.running && timer.startedAt) {
@@ -99,6 +93,8 @@ export function TimerCard({
   );
 }
 
+type TimerMode = "off" | "up" | "down";
+
 export function TimerSettingsDialog({
   settings,
   onSettingsChange,
@@ -108,7 +104,7 @@ export function TimerSettingsDialog({
   onSettingsChange: (s: PresentationSettings) => void;
   onClose: () => void;
 }) {
-  const timerMode = (settings.timerMode as "up" | "down") || "off";
+  const timerMode: TimerMode = (settings.timerMode ?? "off") as TimerMode;
 
   const updateSetting = (patch: Partial<PresentationSettings>) => {
     onSettingsChange({ ...settings, ...patch });

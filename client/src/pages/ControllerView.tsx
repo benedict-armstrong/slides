@@ -17,7 +17,7 @@ import { SpeakerNotesCard } from "@/components/controller/SpeakerNotesCard";
 import { ThumbnailsCard } from "@/components/controller/ThumbnailsCard";
 import { TimerCard, TimerAction, TimerSettingsDialog } from "@/components/controller/TimerCard";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { ResponsiveGridLayout, useContainerWidth, getCompactor, type Layout } from "react-grid-layout";
+import { ResponsiveGridLayout, useContainerWidth, getCompactor } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import type { PresentationSettings } from "./Presentation";
@@ -91,10 +91,20 @@ function formatBinding(b: KeyBinding): string {
 
 // --- Card configuration ---
 
+interface CardLayout {
+  i: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  minW?: number;
+  minH?: number;
+}
+
 interface CardConfig {
   key: string;
   label: string;
-  preferredLayout: Layout;
+  preferredLayout: CardLayout;
 }
 
 const GRID_ROWS = 12;
@@ -110,14 +120,15 @@ const CARD_CONFIGS: CardConfig[] = [
 
 const CARD_KEYS = CARD_CONFIGS.map((c) => c.key);
 const CARD_LABELS = Object.fromEntries(CARD_CONFIGS.map((c) => [c.key, c.label]));
-const PREFERRED_LAYOUTS = Object.fromEntries(CARD_CONFIGS.map((c) => [c.key, c.preferredLayout]));
-const DEFAULT_LAYOUTS = CARD_CONFIGS.map((c) => c.preferredLayout);
+const PREFERRED_LAYOUTS: Record<string, CardLayout> =
+  Object.fromEntries(CARD_CONFIGS.map((c) => [c.key, c.preferredLayout])) as Record<string, CardLayout>;
+const DEFAULT_LAYOUTS: CardLayout[] = CARD_CONFIGS.map((c) => c.preferredLayout);
 
-function loadLayout(): Layout[] {
+function loadLayout(): CardLayout[] {
   try {
     const raw = localStorage.getItem("presio_controller_layout");
     if (raw) {
-      const saved: Layout[] = JSON.parse(raw);
+      const saved: CardLayout[] = JSON.parse(raw);
       return CARD_KEYS.map((key) => {
         const s = saved.find((l) => l.i === key);
         const pref = PREFERRED_LAYOUTS[key];
@@ -177,7 +188,7 @@ export function ControllerView({
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [keymap, setKeymap] = useState<Keymap>(loadKeymap);
 
-  const [layouts, setLayouts] = useState<Layout[]>(loadLayout);
+  const [layouts, setLayouts] = useState<CardLayout[]>(loadLayout);
   const [cardVisibility, setCardVisibility] = useState<Record<string, boolean>>(loadVisibility);
   const { containerRef: gridContainerRef, width: gridWidth } = useContainerWidth();
   const heightRef = useRef<HTMLDivElement>(null);
@@ -217,9 +228,10 @@ export function ControllerView({
     return () => window.removeEventListener("keydown", handler);
   }, [currentSlide, totalSlides, onGoTo, onBlankToggle, keymap]);
 
-  const onLayoutChange = useCallback((layout: Layout[]) => {
-    setLayouts(layout);
-    localStorage.setItem("presio_controller_layout", JSON.stringify(layout));
+  const onLayoutChange = useCallback((layout: any) => {
+    const arr: CardLayout[] = Array.isArray(layout) ? layout : (layout?.lg ?? layout?.md ?? layout?.sm ?? []);
+    setLayouts(arr);
+    localStorage.setItem("presio_controller_layout", JSON.stringify(arr));
   }, []);
 
   const resetLayout = useCallback(() => {
@@ -259,7 +271,7 @@ export function ControllerView({
       content: <NextSlideCard pdf={pdf} currentSlide={currentSlide} totalSlides={totalSlides} />,
     },
     timer: {
-      content: <TimerCard id={id} settings={settings} onSettingsChange={onSettingsChange} />,
+      content: <TimerCard id={id} />,
       action: <TimerAction open={timerSettingsOpen} onToggle={() => setTimerSettingsOpen(!timerSettingsOpen)} />,
     },
     notes: {
@@ -387,7 +399,6 @@ export function ControllerView({
           cols={{ lg: 12 }}
           rowHeight={rowHeight}
           maxRows={GRID_ROWS}
-          draggableHandle=".card-drag-handle"
           onLayoutChange={onLayoutChange}
           compactor={verticalCompactor}
           margin={[GRID_MARGIN, GRID_MARGIN]}
