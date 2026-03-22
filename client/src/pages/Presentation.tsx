@@ -42,6 +42,7 @@ export default function Presentation() {
   const [blanked, setBlanked] = useState(false);
 
   const currentCanvasRef = useRef<HTMLDivElement>(null);
+  const channelRef = useRef<BroadcastChannel | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,6 +88,15 @@ export default function Presentation() {
     socket.connect();
     socket.emit("join_session", { sessionId: id, role: requestedRole, token: controllerToken });
 
+    const channel = new BroadcastChannel(`presio-${id}`);
+    channelRef.current = channel;
+    channel.onmessage = (e) => {
+      const { type, payload } = e.data;
+      if (type === "slide_update") setCurrentSlide(payload.slideNumber);
+      else if (type === "blank_update") setBlanked(payload.blanked);
+      else if (type === "settings_update") setSettings(payload);
+    };
+
     socket.on("session_state", ({ currentSlide, totalSlides, role: grantedRole, settings: s }) => {
       setCurrentSlide(currentSlide);
       setTotalSlides(totalSlides);
@@ -120,6 +130,8 @@ export default function Presentation() {
     });
 
     return () => {
+      channel.close();
+      channelRef.current = null;
       socket.off("session_state");
       socket.off("slide_update");
       socket.off("settings_update");
@@ -146,6 +158,7 @@ export default function Presentation() {
     (slide: number) => {
       if (slide < 1 || slide > totalSlides) return;
       socket.emit("slide_change", { slideNumber: slide });
+      channelRef.current?.postMessage({ type: "slide_update", payload: { slideNumber: slide } });
       setCurrentSlide(slide);
     },
     [totalSlides]
@@ -197,10 +210,14 @@ export default function Presentation() {
       onSettingsChange={(s) => {
         setSettings(s);
         socket.emit("settings_change", s);
+        channelRef.current?.postMessage({ type: "settings_update", payload: s });
       }}
       startedAt={startedAt}
       blanked={blanked}
-      onBlankToggle={() => socket.emit("blank_toggle")}
+      onBlankToggle={() => {
+        socket.emit("blank_toggle");
+        channelRef.current?.postMessage({ type: "blank_update", payload: { blanked: !blanked } });
+      }}
     />
   );
 }

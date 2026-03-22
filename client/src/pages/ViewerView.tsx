@@ -101,7 +101,13 @@ export function ViewerView({
       <div ref={canvasRef} className="w-full h-full" />
 
       {blanked && (
-        <div className="absolute inset-0 bg-black z-10" />
+        <div className="absolute inset-0 bg-black z-10 flex items-center justify-center">
+          <p className={`text-white/50 text-sm select-none transition-opacity duration-300 ${
+            cursorVisible ? "opacity-100" : "opacity-0"
+          }`}>
+            Screen blanked by presenter
+          </p>
+        </div>
       )}
 
       <div className={`absolute top-4 left-4 flex items-center gap-2 transition-opacity duration-300 ${

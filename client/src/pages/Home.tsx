@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { PresioLogo } from "@/components/PresioLogo";
 
 interface RecentSession {
   id: string;
@@ -14,6 +15,7 @@ export default function Home() {
   const navigate = useNavigate();
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
   const CODE_LENGTH = 6;
   const [chars, setChars] = useState<string[]>(Array(CODE_LENGTH).fill(""));
@@ -52,15 +54,24 @@ export default function Home() {
   const upload = useCallback(async (file: File) => {
     setError("");
     setUploading(true);
+    setProgress(0);
     try {
       const form = new FormData();
       form.append("pdf", file);
-      const res = await fetch("/api/sessions", { method: "POST", body: form });
-      if (!res.ok) {
-        const body = await res.json();
-        throw new Error(body.error || "Upload failed");
-      }
-      const { id, controllerToken, passphrase } = await res.json();
+      const { id, controllerToken, passphrase } = await new Promise<{ id: string; controllerToken: string; passphrase: string }>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/sessions");
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
+        };
+        xhr.onload = () => {
+          const body = JSON.parse(xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300) resolve(body);
+          else reject(new Error(body.error || "Upload failed"));
+        };
+        xhr.onerror = () => reject(new Error("Upload failed"));
+        xhr.send(form);
+      });
       localStorage.setItem(`session_${id}`, JSON.stringify({ controllerToken, passphrase }));
       navigate(`/s/${id}/share`);
     } catch (e: unknown) {
@@ -98,8 +109,11 @@ export default function Home() {
     <div className="min-h-screen flex flex-col items-center justify-center p-4 gap-4">
       <Card className="w-full max-w-lg">
         <CardContent className="pt-6 space-y-6">
-          <div className="text-center space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight">Presio</h1>
+          <div className="text-center space-y-2">
+            <div className="flex items-center justify-center gap-2">
+              <PresioLogo className="h-6 w-auto text-foreground" />
+              <h1 className="text-2xl font-semibold tracking-tight">Presio</h1>
+            </div>
             <p className="text-sm text-muted-foreground">
               Upload a PDF presentation to start presenting
             </p>
@@ -119,9 +133,21 @@ export default function Home() {
             }`}
             onClick={() => document.getElementById("file-input")?.click()}
           >
-            <p className="text-muted-foreground text-sm">
-              {uploading ? "Uploading..." : "Drop a PDF here or click to browse"}
-            </p>
+            {uploading ? (
+              <div className="space-y-2 w-full max-w-xs mx-auto">
+                <p className="text-muted-foreground text-sm">
+                  {progress < 100 ? `Uploading… ${progress}%` : "Processing…"}
+                </p>
+                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary transition-[width] duration-200"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">Drop a PDF here or click to browse</p>
+            )}
             <input
               id="file-input"
               type="file"

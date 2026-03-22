@@ -55,14 +55,3 @@ The client dev server proxies `/api` and `/socket.io` requests to the server on 
 Presentations automatically expire after 24 hours.
 
 ## TODO
-
-- [ ] Add "F" key to toggle fullscreen mode in the viewer view.
-- [ ] Add "M" key to mute presentation from the controller view for all viewers.
-- [ ] Add "CMD+Left" and "CMD+Right" to navigate to first/last slides in the controller view.
-- [ ] Make all the cards in the controller view movable resizable and draggable and toggle on off.
-  - [ ] Each card component should be spit into a separate file and imported into the ControllerView component.
-  - [ ] Timer should also be a card and should be toggle able. The timer should include start/stop and reset buttons. The timers can probably be handled on the client side without the need to sync to the DB. It can be persisted to the browser storage.
-- [ ] The menu icon in the viewer window is not visible on white slide backgrounds. Also make sure the cursor changes to a pointer when hovering on the menu.
-- [ ] The connection indicator in the viewer view should also fade out when the cursor is hidden.
-- [ ] The join existing input field should be visible in the home screen but the buttons to join as controller/viewers should only appear when a code is entered.
-- [ ] The codes should not be case sensitive (default to uppercase)

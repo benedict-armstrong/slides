@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { renderPage } from "@/lib/pdf";
 
@@ -15,6 +15,14 @@ export function ThumbnailsCard({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const thumbRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const [aspectRatio, setAspectRatio] = useState<number | null>(null);
+
+  useEffect(() => {
+    pdf.getPage(1).then((page) => {
+      const vp = page.getViewport({ scale: 1 });
+      setAspectRatio(vp.width / vp.height);
+    });
+  }, [pdf]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -23,7 +31,7 @@ export function ThumbnailsCard({
           if (!entry.isIntersecting) return;
           const pageNum = Number((entry.target as HTMLElement).dataset.page);
           if (!pageNum) return;
-          renderPage(pdf, pageNum, 0.25).then((canvas) => {
+          renderPage(pdf, pageNum, 0.5).then((canvas) => {
             const el = entry.target as HTMLDivElement;
             if (el.childElementCount > 0) return;
             canvas.style.width = "100%";
@@ -60,6 +68,7 @@ export function ThumbnailsCard({
               ? "ring-2 ring-red-500 border-red-500"
               : "border-border hover:border-foreground/30"
           }`}
+          style={aspectRatio ? { aspectRatio, minWidth: 80 } : { minWidth: 80 }}
         >
           <div
             ref={(el) => { if (el) thumbRefs.current.set(num, el); }}

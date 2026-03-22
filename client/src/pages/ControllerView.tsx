@@ -16,6 +16,7 @@ import { NextSlideCard } from "@/components/controller/NextSlideCard";
 import { SpeakerNotesCard } from "@/components/controller/SpeakerNotesCard";
 import { ThumbnailsCard } from "@/components/controller/ThumbnailsCard";
 import { TimerCard, TimerAction, TimerSettingsDialog } from "@/components/controller/TimerCard";
+import { PresioLogo } from "@/components/PresioLogo";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { ResponsiveGridLayout, useContainerWidth, getCompactor } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
@@ -111,11 +112,11 @@ const GRID_ROWS = 12;
 const GRID_MARGIN = 12;
 
 const CARD_CONFIGS: CardConfig[] = [
-  { key: "currentSlide", label: "Current Slide", preferredLayout: { i: "currentSlide", x: 0, y: 0,  w: 8,  h: 7, minW: 4, minH: 3 } },
-  { key: "nextSlide",    label: "Next Slide",    preferredLayout: { i: "nextSlide",    x: 8, y: 0,  w: 4,  h: 5, minW: 3, minH: 3 } },
-  { key: "timer",        label: "Timer",         preferredLayout: { i: "timer",        x: 8, y: 5,  w: 4,  h: 3, minW: 2, minH: 2 } },
-  { key: "notes",        label: "Speaker Notes", preferredLayout: { i: "notes",        x: 0, y: 7,  w: 8,  h: 3, minW: 3, minH: 2 } },
-  { key: "thumbnails",   label: "Thumbnails",    preferredLayout: { i: "thumbnails",   x: 0, y: 10, w: 12, h: 2, minW: 4, minH: 2 } },
+  { key: "currentSlide", label: "Current Slide", preferredLayout: { i: "currentSlide", x: 0,  y: 0, w: 6,  h: 8, minW: 4, minH: 3 } },
+  { key: "nextSlide",    label: "Next Slide",    preferredLayout: { i: "nextSlide",    x: 6,  y: 0, w: 4,  h: 5, minW: 3, minH: 3 } },
+  { key: "timer",        label: "Timer",         preferredLayout: { i: "timer",        x: 10, y: 0, w: 2,  h: 5, minW: 2, minH: 2 } },
+  { key: "notes",        label: "Speaker Notes", preferredLayout: { i: "notes",        x: 6,  y: 5, w: 6,  h: 3, minW: 3, minH: 2 } },
+  { key: "thumbnails",   label: "Thumbnails",    preferredLayout: { i: "thumbnails",   x: 0,  y: 8, w: 12, h: 4, minW: 4, minH: 2 } },
 ];
 
 const CARD_KEYS = CARD_CONFIGS.map((c) => c.key);
@@ -190,6 +191,7 @@ export function ControllerView({
 
   const [layouts, setLayouts] = useState<CardLayout[]>(loadLayout);
   const [cardVisibility, setCardVisibility] = useState<Record<string, boolean>>(loadVisibility);
+  const [hasPreferred, setHasPreferred] = useState(() => !!localStorage.getItem("presio_preferred_layout"));
   const { containerRef: gridContainerRef, width: gridWidth } = useContainerWidth();
   const heightRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(0);
@@ -240,6 +242,31 @@ export function ControllerView({
     setCardVisibility(defaultVis);
     localStorage.setItem("presio_controller_layout", JSON.stringify(DEFAULT_LAYOUTS));
     localStorage.setItem("presio_controller_cards", JSON.stringify(defaultVis));
+  }, []);
+
+  const savePreferredLayout = useCallback(() => {
+    localStorage.setItem("presio_preferred_layout", JSON.stringify(layouts));
+    localStorage.setItem("presio_preferred_cards", JSON.stringify(cardVisibility));
+    setHasPreferred(true);
+  }, [layouts, cardVisibility]);
+
+  const restorePreferredLayout = useCallback(() => {
+    try {
+      const savedLayout = localStorage.getItem("presio_preferred_layout");
+      const savedCards = localStorage.getItem("presio_preferred_cards");
+      if (!savedLayout || !savedCards) return;
+      const parsed: CardLayout[] = JSON.parse(savedLayout);
+      const vis: Record<string, boolean> = JSON.parse(savedCards);
+      const restored = CARD_KEYS.map((key) => {
+        const s = parsed.find((l) => l.i === key);
+        const pref = PREFERRED_LAYOUTS[key];
+        return s ? { ...s, minW: pref.minW, minH: pref.minH } : pref;
+      });
+      setLayouts(restored);
+      setCardVisibility(vis);
+      localStorage.setItem("presio_controller_layout", JSON.stringify(restored));
+      localStorage.setItem("presio_controller_cards", JSON.stringify(vis));
+    } catch { /* ignore */ }
   }, []);
 
   const toggleCard = useCallback((key: string) => {
@@ -303,7 +330,8 @@ export function ControllerView({
     <div className="h-screen bg-background flex flex-col">
       <div className="border-b px-4 py-2 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link to="/" className="text-sm font-semibold hover:text-muted-foreground transition-colors">
+          <Link to="/" className="flex items-center gap-1.5 text-sm font-semibold hover:text-muted-foreground transition-colors">
+            <PresioLogo className="h-4 w-auto" />
             Presio
           </Link>
           <span className="text-muted-foreground/40">|</span>
@@ -341,6 +369,22 @@ export function ControllerView({
                   </button>
                 ))}
                 <div className="border-t my-1" />
+                <button
+                  type="button"
+                  onClick={savePreferredLayout}
+                  className="w-full px-3 py-1.5 text-xs rounded hover:bg-accent transition-colors text-left text-muted-foreground"
+                >
+                  Save as preferred layout
+                </button>
+                {hasPreferred && (
+                  <button
+                    type="button"
+                    onClick={restorePreferredLayout}
+                    className="w-full px-3 py-1.5 text-xs rounded hover:bg-accent transition-colors text-left text-muted-foreground"
+                  >
+                    Restore preferred layout
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={resetLayout}
@@ -549,7 +593,8 @@ function MobileLayout({
     <div className="h-dvh bg-background flex flex-col">
       <div className="border-b px-3 py-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Link to="/" className="text-sm font-semibold hover:text-muted-foreground transition-colors">
+          <Link to="/" className="flex items-center gap-1.5 text-sm font-semibold hover:text-muted-foreground transition-colors">
+            <PresioLogo className="h-4 w-auto" />
             Presio
           </Link>
           <span className="text-muted-foreground/40">|</span>
